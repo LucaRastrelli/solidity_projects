@@ -1,2 +1,5 @@
 /pet_shop/node_modules/*
 .vscode/*
+/project/node_modules/*
+/project/src/favicon.ico
+/project/src/css/style.css

@@ -2,18 +2,26 @@
 pragma solidity >=0.4.22 <0.9.0;
 
 contract Battleship {
-  constructor() public {
+  uint8 constant GRID_SIZE = 10;
+  uint256 private nextGameID = 1;
+
+  struct Game {
+    bytes32 playerGridHash;
+    bytes32 enemyGridHash;
+    bool isActive;
   }
 
-  function newGame() {}
+  mapping (uint256 => Game) private games;
 
-  function joinGame() {} //gestisce sia il random che non
+  function newGame() public returns (uint8) {}
 
-  function newMove() {} //gestisce nuova mossa
+  function joinGame(uint gameId) public {} //gestisce sia il random che non
 
-  function checkWinner() {}
+  function attack() public{}
 
-  function endGame() {}
+  function checkWinner() private {}
 
-  function afkPlayer() {}
+  function endGame() private {}
+
+  function afkPlayer() public {}
 }
