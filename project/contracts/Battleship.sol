@@ -8,7 +8,8 @@ contract Battleship {
   struct Game {
     bytes32 playerGridHash;
     bytes32 enemyGridHash;
-    bool isActive;
+    bool open;        //=0 ci sono due giocatori; =1 c'è un giocatore
+    bool ended;       //=0 la partita non è finita; =1 la partita è finita
   }
 
   mapping (uint256 => Game) private games;
