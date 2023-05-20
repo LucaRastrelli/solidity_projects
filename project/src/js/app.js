@@ -72,6 +72,11 @@ App = {
           if(gameIDNumber > 0) {
             gameID = gameIDNumber;
             console.log(gameID);
+
+            $('.splash-container').find('button').remove();
+            $('.splash-container').find('table').remove();
+            $('.splash-container').find('input').remove();
+            $('.splash-container').append(gameID);
           }
         })
       }).catch(function(err) {
@@ -81,7 +86,15 @@ App = {
   },
 
   bindEvents: function() {
-    $(document).on('click', '.splash-btn', App.newGame);
+    $(document).on('click', '#new', App.newGame);
+    $(document).on('click', '#join', App.joinGame);
+  },
+
+  joinGame: function() {
+    console.log("joinGame");
+    //0: random
+    var gameID = document.getElementById("gameID").value;
+    console.log(gameID);
   },
 
   initContract: function() {
