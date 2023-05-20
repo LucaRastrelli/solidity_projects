@@ -39,6 +39,51 @@ App = {
     return App.initContract();
   },
 
+  newGame: function(event) {
+    event.preventDefault();
+
+    console.log("newGame");
+    var gameID;
+    var battleshipInstance;
+    web3.eth.getAccounts(function(error, accounts) {
+      if(error) { console.log(error);}
+      var account = accounts[0];
+
+      web3.eth.getCoinbase(function(error, coinbase) {
+        if (error) {
+          console.log(error);
+        }
+        if (coinbase) {
+          account = coinbase; // Utilizza l'indirizzo dell'utente effettivo come account
+        }
+      });
+
+      console.log(account)
+      App.contracts.Battleship.deployed().then(function (instance) {
+        battleshipInstance = instance;
+        return battleshipInstance.newGame({from: account});
+      }).then(function () {
+        
+        battleshipInstance.NewGameCreated(function (err, result) {
+          if(err) {
+            return error(err);
+          }
+          var gameIDNumber = result.args.idGame.toNumber();
+          if(gameIDNumber > 0) {
+            gameID = gameIDNumber;
+            console.log(gameID);
+          }
+        })
+      }).catch(function(err) {
+        console.log(err.message);
+      });
+    });
+  },
+
+  bindEvents: function() {
+    $(document).on('click', '.splash-btn', App.newGame);
+  },
+
   initContract: function() {
     $.getJSON("Battleship.json", function(data) {
       var BattleshipArtifact = data;    //Get the contract artifact and initialize it
@@ -46,7 +91,9 @@ App = {
 
       App.contracts.Battleship.setProvider(App.web3Provider);
       
+      return;
     });
+    return App.bindEvents();
   }
 };
 

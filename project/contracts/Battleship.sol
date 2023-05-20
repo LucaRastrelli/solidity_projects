@@ -13,8 +13,12 @@ contract Battleship {
   }
 
   mapping (uint256 => Game) private games;
+  event NewGameCreated(uint256 idGame);
 
-  function newGame() public returns (uint8) {}
+  function newGame() public {
+    emit NewGameCreated(nextGameID);
+    nextGameID++;
+  }
 
   function joinGame(uint gameId) public {} //gestisce sia il random che non
 
