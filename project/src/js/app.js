@@ -1,8 +1,10 @@
 var waitingForID = false;
 var waitingForJoin = false;
 var waitingForSync = false;
+var waitingForSet = false;
 var IDGame = 0;
 var ethOffer = 0;
+var boardDimension = 0;
 
 App = {
   web3Provider: null,
@@ -57,7 +59,10 @@ App = {
     App.contracts.Battleship.deployed().then(function (instance) {
       battleshipInstance = instance;
       waitingForID = true;
-      return battleshipInstance.newGame({from: App.account});
+      boardDimension = document.getElementById("boardDimension").value;
+      if (boardDimension < 2) boardDimension = 2;
+      else if(boardDimension > 10) boardDimension = 10;
+      return battleshipInstance.newGasme(boardDimension, {from: App.account});
     }).catch(function(err) {
       console.error(err.message);
     });
@@ -99,7 +104,9 @@ App = {
 
   pay: function() {
     App.contracts.Battleship.deployed().then(function (instance) {
-      return instance.pay(IDGame, ethOffer, {from: App.account});
+      console.log(ethOffer.toString() + "000000000000000000");
+      waitingForSet = true;
+      return instance.pay(IDGame, {from: App.account, value: ethOffer.toString() + "000000000000000000"});
     }).catch(function (err) {
       console.error(err.message);
     });
@@ -203,6 +210,17 @@ App = {
 
         $('.pay-phase').append('<button class="btn splash-btn" id="pay-btn" value=' + ethOffer.toString() + '>Pay</button>');
         $(document).on('click', '#pay-btn', App.pay);
+      });
+
+      instance.SetGame(function (err, result) {
+        if(err) {
+          console.error(err);
+        }
+        if(result.args.idGame.toNumber() != IDGame) return;
+        if(waitingForSet == false) return;
+        waitingForSet = false;
+
+
       });
 
     });
