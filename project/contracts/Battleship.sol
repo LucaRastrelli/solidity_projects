@@ -21,7 +21,7 @@ contract Battleship {
   event JoinedGame(address player, address enemy, uint256 idGame);
   event BoardAdded();
   event OfferReceived(address bidder, uint8 offer, uint256 idGame);
-  event CommonOffer(uint256 idGame);
+  event CommonOffer(uint8 offer, uint256 idGame);
 
   function newGame() public {
     emit NewGameCreated(msg.sender, nextGameID);
@@ -76,7 +76,7 @@ contract Battleship {
     emit JoinedGame(games[gameId].player, msg.sender, gameId);
   } 
 
-  //function ricevisoldi?
+  function pay() public {}
 
   function bet(uint256 gameId, uint8 offer) public {
     require(gameId >= 0, "ID must be greater than 0");
@@ -90,7 +90,7 @@ contract Battleship {
     emit OfferReceived(msg.sender, offer, gameId);
 
     if (games[gameId].playerOffer == games[gameId].enemyOffer) {
-      emit CommonOffer(gameId);
+      emit CommonOffer(games[gameId].playerOffer, gameId);
     }
 
   }

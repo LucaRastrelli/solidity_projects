@@ -97,6 +97,18 @@ App = {
 
   },
 
+  pay: function() {
+    App.contracts.Battleship.deployed().then(function (instance) {
+      return instance.pay(IDGame, ethOffer, {from: App.account});
+    }).catch(function (err) {
+      console.error(err.message);
+    });
+  },
+
+  createBoard: function() {
+
+  },
+
   listenForEvents: function() {
     App.contracts.Battleship.deployed().then(function (instance) {
       instance.NewGameCreated(function (err, result) {
@@ -137,20 +149,21 @@ App = {
         $('.splash-container').find('button').remove();
         $('.splash-container').find('input').remove();
         $('.waiting').remove();
-        
-        $('.splash-container').append("Game ID ");
-        $('.splash-container').append(IDGame);
-        $('.splash-container').append(" is starting. Choose how many ETH you want to bet: ");
-        $('.splash-container').append('<input type="number" id="bet" placeholder="ETH" min="1" value="1">');
-        $('.splash-container').append('<br></br>');
-        $('.splash-container').append('<button class="btn splash-btn" id="bet-btn">Bet</button>');
+
+        $('.splash-container').append("<div class='sync-phase'></div>");
+
+        $('.sync-phase').append("Game ID ");
+        $('.sync-phase').append(IDGame);
+        $('.sync-phase').append(" is starting. Choose how many ETH you want to bet: ");
+        $('.sync-phase').append('<input type="number" id="bet" placeholder="ETH" min="1" value="1">');
+        $('.sync-phase').append('<br></br>');
+        $('.sync-phase').append('<button class="btn splash-btn" id="bet-btn">Bet</button>');
         $(document).on('click', '#bet-btn', App.bet);
+        $('.sync-phase').append('<br></br>');
+        $('.sync-phase').append('<div class="decision"</div>');
 
-        $('.splash-container').append('<br></br>');
-        $('.splash-container').append('<div class="decision"</div>');
         $('.decision').append('<div class="offer"</div>');
-
-        $('.offer').append('Your adversary is still thinking...')
+        $('.offer').append('Your adversary is still thinking...');
 
       });
       
@@ -172,7 +185,24 @@ App = {
       });
 
       instance.CommonOffer(function (err, result) {
+        if(err) {
+          console.error(err);
+        }
+        if(result.args.idGame.toNumber() != IDGame) return;
+        if(waitingForSync == false) return;
+        waitingForSync = false;
+        ethOffer = result.args.offer.toNumber();
+        $('.offer').remove();
+        $('.sync-phase').remove();
 
+        $('.splash-container').append("<div class='pay-phase'></div>");
+
+        $('.pay-phase').append("You agreed to bet: ");
+        $('.pay-phase').append(ethOffer);
+        $('.pay-phase').append(" ETH");
+
+        $('.pay-phase').append('<button class="btn splash-btn" id="pay-btn" value=' + ethOffer.toString() + '>Pay</button>');
+        $(document).on('click', '#pay-btn', App.pay);
       });
 
     });
