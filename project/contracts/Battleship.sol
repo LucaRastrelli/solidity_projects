@@ -20,17 +20,17 @@ contract Battleship {
 
   mapping (uint256 => Game) private games;
   event NewGameCreated(address player, uint256 idGame);
-  event JoinedGame(address player, address enemy, uint256 idGame);
+  event JoinedGame(address player, address enemy, uint256 idGame, uint8 boardDimension);
   event BoardAdded();
   event OfferReceived(address bidder, uint8 offer, uint256 idGame);
   event CommonOffer(uint8 offer, uint256 idGame);
   event SetGame(uint256 idGame);
 
-  function newGame(uint8 boardDimension) public {
+  function newGame(uint8 dimension) public {
     emit NewGameCreated(msg.sender, nextGameID);
     games[nextGameID].player = msg.sender;
     games[nextGameID].enemy = address(0);
-    games[nextGameID].boardDimension = boardDimension;
+    games[nextGameID].boardDimension = dimension;
     games[nextGameID].ended = false;
     games[nextGameID].playerOffer = 0;
     games[nextGameID].enemyOffer = 0;
@@ -79,7 +79,7 @@ contract Battleship {
     }
     games[gameId].enemy = msg.sender;
     counter--;
-    emit JoinedGame(games[gameId].player, msg.sender, gameId);
+    emit JoinedGame(games[gameId].player, msg.sender, gameId, games[gameId].boardDimension);
   } 
 
   function bet(uint256 gameId, uint8 offer) public {

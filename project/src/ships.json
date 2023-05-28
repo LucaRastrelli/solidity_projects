@@ -6,13 +6,13 @@
     },
     {
       "id": 1,
-      "name": "submarine",
-      "width": 3
+      "name": "cruiser",
+      "width": 2
     },
     {
       "id": 2,
-      "name": "cruiser",
-      "width": 2
+      "name": "submarine",
+      "width": 3
     },
     {
       "id": 3,

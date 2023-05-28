@@ -5,6 +5,12 @@ var waitingForSet = false;
 var IDGame = 0;
 var ethOffer = 0;
 var boardDimension = 0;
+var grid = [];
+var clickOnShip = false;
+var vertical = false;
+var ship;
+var shipDimension = 0;
+var adding = 1;
 
 App = {
   web3Provider: null,
@@ -53,16 +59,14 @@ App = {
   },
 
   newGame: function() {
-    console.log("newGame");
     var battleshipInstance;
-    console.log(App.account)
     App.contracts.Battleship.deployed().then(function (instance) {
       battleshipInstance = instance;
       waitingForID = true;
       boardDimension = document.getElementById("boardDimension").value;
       if (boardDimension < 2) boardDimension = 2;
       else if(boardDimension > 10) boardDimension = 10;
-      return battleshipInstance.newGasme(boardDimension, {from: App.account});
+      return battleshipInstance.newGame(boardDimension, {from: App.account});
     }).catch(function(err) {
       console.error(err.message);
     });
@@ -79,8 +83,6 @@ App = {
     var gameID = document.getElementById("gameID").value;
     var battleshipInstance;
     if(gameID < 0) gameID = 0;
-    console.log(gameID);
-    console.log(App.account);
     App.contracts.Battleship.deployed().then(function (instance) {
       battleshipInstance = instance;
       waitingForJoin = true;
@@ -92,7 +94,6 @@ App = {
 
   bet: function() {
     var offer = document.getElementById("bet").value;
-    console.log(offer);
     if (offer <= 0) offer = 1;
     App.contracts.Battleship.deployed().then(function (instance) {
       return instance.bet(IDGame, offer, {from: App.account});
@@ -104,7 +105,6 @@ App = {
 
   pay: function() {
     App.contracts.Battleship.deployed().then(function (instance) {
-      console.log(ethOffer.toString() + "000000000000000000");
       waitingForSet = true;
       return instance.pay(IDGame, {from: App.account, value: ethOffer.toString() + "000000000000000000"});
     }).catch(function (err) {
@@ -112,8 +112,69 @@ App = {
     });
   },
 
-  createBoard: function() {
+  rotate: function() {
+    var ships = document.getElementsByClassName('ship-container');
+    if (ships[0].classList.contains('vertical')) {
+      // Se la nave è orizzontale, ruotala in verticale
+      ships[0].classList.remove('vertical');
+    } else {
+      // Se la nave è verticale, ruotala in orizzontale
+      ships[0].classList.add('vertical');
+    }
+  },
 
+  placeShip: function(shipID) {
+    clickOnShip = true;
+    var ships = document.getElementsByClassName('ship-container');
+    vertical = ships[0].classList.contains('vertical');
+
+    for (var i = 0; i < ships[0].children.length; i++){
+      ship = ships[0].children[i];
+      if(parseInt(ship.dataset.id) == shipID)
+        break;
+    }
+    shipDimension = parseInt(ship.dataset.width);
+    
+    if(vertical) {
+      adding = boardDimension;
+    }
+    else adding = 1;
+  },
+
+  shipOnCell: function(event) {
+    if(!clickOnShip) return;
+    
+    const targetCell = event.target;
+    var targetId = parseInt(targetCell.id);
+    if(!vertical) {
+      var i = Math.floor(targetId / boardDimension);
+      var j = Math.floor((targetId + shipDimension - 1) / boardDimension);
+      if(i != j) return; // se non sono sulla stessa riga return
+    }
+    else {
+      var j = targetId + (boardDimension * (shipDimension - 1));
+      if (j > boardDimension * boardDimension) return; //se j è più grande della board return;
+    }
+
+    for (var z = 0; z < shipDimension; z++) {
+      var index = targetId + (z*adding);
+      if(grid[index] == 1) {
+        return;
+      }
+    }
+    
+    for (var z = 0; z < shipDimension; z++) {
+      var index = targetId + (z*adding);
+      const cell = document.getElementById(index);
+      cell.style.backgroundColor = "green";
+      grid[index] = 1;
+    }
+
+    clickOnShip = false;
+    ship.remove();
+    
+    var ships = document.getElementsByClassName('ship-container');
+    if(ships[0].children.length == 0) {}
   },
 
   listenForEvents: function() {
@@ -131,10 +192,10 @@ App = {
         $('.splash-container').find('input').remove();
         $('.splash-container').find('button').remove();
 
-        $('.splash-container').append("<div class='waiting'</div>");
-        $('.waiting').append("Game ID: ");
-        $('.waiting').append(result.args.idGame.toNumber());
-        $('.waiting').append('<br>Waiting for player...');
+        $('.splash-container').append("<div class='waiting-phase'</div>");
+        $('.waiting-phase').append("Game ID: ");
+        $('.waiting-phase').append(result.args.idGame.toNumber());
+        $('.waiting-phase').append('<br>Waiting for player...');
         waitingForJoin = true;
           
       });
@@ -153,9 +214,10 @@ App = {
         else return;
         waitingForJoin = false;
         waitingForSync = true;
+        boardDimension = result.args.boardDimension.toNumber()
         $('.splash-container').find('button').remove();
         $('.splash-container').find('input').remove();
-        $('.waiting').remove();
+        $('.waiting-phase').remove();
 
         $('.splash-container').append("<div class='sync-phase'></div>");
 
@@ -200,6 +262,7 @@ App = {
         waitingForSync = false;
         ethOffer = result.args.offer.toNumber();
         $('.offer').remove();
+        $('.decision').remove();
         $('.sync-phase').remove();
 
         $('.splash-container').append("<div class='pay-phase'></div>");
@@ -220,9 +283,41 @@ App = {
         if(waitingForSet == false) return;
         waitingForSet = false;
 
+        for (let i = 0; i < boardDimension * boardDimension; i++) {
+          grid.push(0);
+        }
+
+        $('.pay-phase').remove();
+        $('.splash-container').append("<div class='board-phase'></div>");
+        $('.board-phase').append("<table id='gridTable'></table>");
+
+        const table = document.getElementById("gridTable");
+        var cellID = 0;
+        for(var i = 0; i < boardDimension; i++) {
+            const tr = document.createElement("tr");
+          for(var j = 0; j < boardDimension; j++){
+            const td = document.createElement("td");
+            td.setAttribute('id', cellID);
+            td.setAttribute('value', 0);
+            cellID++;
+            td.addEventListener('click', App.shipOnCell);
+            tr.appendChild(td);
+          };
+          table.appendChild(tr);
+        };
+        
+        $('.board-phase').append("<div class='ship-container'></div>");
+
+        $.getJSON('../ships.json', function(data) {    
+          for (i = 0; i < data.length; i ++) {
+            $('.ship-container').append("<span class='" + data[i].name + "' data-id=" + data[i].id + " data-width=" + data[i].width + " onclick=App.placeShip("+data[i].id+")></span>");
+          }
+        });
+        $('.board-phase').append("<button class='btn splash-btn' id='rotateButton'>Rotate</button>");
+        $(document).on('click', '#rotateButton', App.rotate);
+
 
       });
-
     });
   }
 };
