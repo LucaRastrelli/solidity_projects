@@ -14,17 +14,20 @@ contract Battleship {
     bool ended;       //false: la partita non è finita; true: la partita è finita
     uint8 playerOffer;
     uint8 enemyOffer;
-    bool playerPay;   // 
-    bool enemyPay;    //
+    bool playerPay;   //false: il giocatore non ha pagato
+    bool enemyPay;    //false: enemy non ha pagato
+    uint8 playerHitSum; 
+    uint8 enemyHitSum;
   }
 
   mapping (uint256 => Game) private games;
   event NewGameCreated(address player, uint256 idGame);
   event JoinedGame(address player, address enemy, uint256 idGame, uint8 boardDimension);
-  event BoardAdded();
   event OfferReceived(address bidder, uint8 offer, uint256 idGame);
   event CommonOffer(uint8 offer, uint256 idGame);
   event SetGame(uint256 idGame);
+  event StartGame(uint256 idGame);
+  event AttackedCell(uint256 idGame, uint8 cell);
 
   function newGame(uint8 dimension) public {
     emit NewGameCreated(msg.sender, nextGameID);
@@ -38,6 +41,8 @@ contract Battleship {
     games[nextGameID].enemyGridHash = 0;
     games[nextGameID].playerPay = false;
     games[nextGameID].enemyPay = false;
+    games[nextGameID].playerHitSum = 16;
+    games[nextGameID].enemyHitSum = 16;
     nextGameID++;
     counter++;
   }
@@ -108,7 +113,15 @@ contract Battleship {
     if(games[gameId].playerPay && games[gameId].enemyPay) emit SetGame(gameId);
   }
 
-  function attack() public {}
+  function attack(uint256 gameID, uint8 cellID) public {
+    require(gameID >= 0, "ID must be greater than 0");
+    require(gameID < nextGameID, "Game not open");
+    require(cellID < games[gameID].boardDimension * games[gameID].boardDimension);
+
+    emit AttackedCell(gameID, cellID);
+  }
+
+  function attackResponse() private {}
 
   function checkWinner() private {}
 
@@ -116,12 +129,14 @@ contract Battleship {
 
   function afkPlayer() public {}
 
-  function board(bytes32 boardHash, uint256 gameID) public {
+  function board(uint256 gameID, bytes32 boardHash) public {
     require(gameID < nextGameID);
     require(gameID > 0);
-
-    emit BoardAdded();
-    games[gameID].playerGridHash = boardHash;
+    
+    if (games[gameID].player == msg.sender) games[gameID].playerGridHash = boardHash;
+    if (games[gameID].enemy == msg.sender) games[gameID].enemyGridHash = boardHash;
+    
+    if(games[gameID].playerGridHash != 0 && games[gameID].enemyGridHash != 0) emit StartGame(gameID);
   }
 
 }

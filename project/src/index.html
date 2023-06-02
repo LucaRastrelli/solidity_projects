@@ -16,7 +16,14 @@
       <h1 class="splash-title">Battleship</h1>
       <div>
         <button class="btn splash-btn" id="new">New Game</button>
-        <input type="number" id="boardDimension" placeholder="Choose Board Dimension" min="2" max="10">
+        <select type="number" id="boardDimension" placeholder="Choose Board Dimension">
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+        </select>
         <button class="btn splash-btn" id="join">Join Game</button>
         <input type="number" id="gameID" placeholder="Join ID Game" min="0">
       </div>
@@ -29,6 +36,14 @@
     <script src="js/bootstrap.min.js"></script>
     <script src="js/web3.min.js"></script>
     <script src="js/truffle-contract.js"></script>
+    <script type="module">
+      import web3Utils from 'https://cdn.jsdelivr.net/npm/web3-utils@3.0.0-rc.0/+esm';
+
+      window.addEventListener('DOMContentLoaded', () => {
+    window.web3Utils = web3Utils;
+
+      });
+      </script> 
     <script src="js/app.js"></script>
   </body>
 </html>

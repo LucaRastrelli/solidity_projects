@@ -2,15 +2,22 @@ var waitingForID = false;
 var waitingForJoin = false;
 var waitingForSync = false;
 var waitingForSet = false;
+var waitingForStart = false;
+var waitingForResponse = false;
 var IDGame = 0;
 var ethOffer = 0;
 var boardDimension = 0;
-var grid = [];
+var gridPlayer = [];
+var gridSalt = [];
+var gridHash = [];
+var merkleProofTree = [];
+var MTroot = '';
 var clickOnShip = false;
 var vertical = false;
 var ship;
 var shipDimension = 0;
 var adding = 1;
+var turn = false;
 
 App = {
   web3Provider: null,
@@ -63,9 +70,8 @@ App = {
     App.contracts.Battleship.deployed().then(function (instance) {
       battleshipInstance = instance;
       waitingForID = true;
+      turn = true;
       boardDimension = document.getElementById("boardDimension").value;
-      if (boardDimension < 2) boardDimension = 2;
-      else if(boardDimension > 10) boardDimension = 10;
       return battleshipInstance.newGame(boardDimension, {from: App.account});
     }).catch(function(err) {
       console.error(err.message);
@@ -78,7 +84,6 @@ App = {
   },
 
   joinGame: function() {
-    console.log("joinGame");
     //0: random
     var gameID = document.getElementById("gameID").value;
     var battleshipInstance;
@@ -158,7 +163,7 @@ App = {
 
     for (var z = 0; z < shipDimension; z++) {
       var index = targetId + (z*adding);
-      if(grid[index] == 1) {
+      if(gridPlayer[index] == 1) {
         return;
       }
     }
@@ -167,15 +172,77 @@ App = {
       var index = targetId + (z*adding);
       const cell = document.getElementById(index);
       cell.style.backgroundColor = "green";
-      grid[index] = 1;
+      cell.setAttribute("value", 1);
+      gridPlayer[index] = 1;
     }
 
     clickOnShip = false;
     ship.remove();
     
     var ships = document.getElementsByClassName('ship-container');
-    if(ships[0].children.length == 0) {}
+    if(ships[0].children.length == 0) { //allora ho piazzato tutte le navi
+      ships[0].remove();
+      $('#rotateButton').remove();
+      $('.board-phase').append("<button class='btn splash-btn' id='playButton'>Play</button>");
+      $(document).on('click', '#playButton', App.sendBoard);
+    }
   },
+
+  generateHash: function() {
+    const min = 0;
+    const max = 255;
+    for (var i = 0; i < boardDimension * boardDimension; i++) {
+      var randomNumber = Math.floor(Math.random() * (max - min + 1)) + min;
+      gridSalt.push(randomNumber);
+      gridHash.push(window.web3Utils.keccak256(gridSalt[i].toString() + gridPlayer[i].toString()));
+    }
+  },
+
+  sendBoard: function() {
+    App.generateHash();
+    App.merkleTreeGeneration();
+    App.contracts.Battleship.deployed().then(function (instance) {
+      waitingForStart = true;
+      return instance.board(IDGame, MTroot, {from: App.account});
+    }).catch(function (err) {
+      console.error(err.message);
+    });
+  },
+
+  merkleTreeGeneration: function() {
+    var tempHashes = gridHash;
+    var nodes = [];
+    while(true) {
+      merkleProofTree.push(tempHashes);
+      nodes = [];
+      for (var i = 0; i < tempHashes.length; i = i + 2) {
+        if(tempHashes[i + 1])
+          nodes.push(window.web3Utils.keccak256(tempHashes[i] + tempHashes[i+1]));
+        else
+          nodes.push(tempHashes[i]);
+      }
+      tempHashes = nodes;
+      if (nodes.length == 1) break;
+    }
+    console.log(merkleProofTree);
+    MTroot = tempHashes[0];
+  },
+
+  attack: function(event) {
+    if(!turn) return;
+    const targetCell = event.target;
+    var attacked = parseInt(targetCell.dataset.attack);
+    if(attacked == 1) return;
+    targetCell.dataset.attack = 1;
+    waitingForResponse = true;
+    App.contracts.Battleship.deployed().then(function (instance) {
+      return instance.attack(IDGame, targetCell.dataset.id, {from: App.account});
+    }).catch(function (err) {
+      console.error(err.message);
+    });
+  },
+
+  afk: function() {},
 
   listenForEvents: function() {
     App.contracts.Battleship.deployed().then(function (instance) {
@@ -189,6 +256,7 @@ App = {
         IDGame = result.args.idGame.toNumber();
         console.log(IDGame);
         $('.splash-container').find('button').remove();
+        $('.splash-container').find('select').remove();
         $('.splash-container').find('input').remove();
         $('.splash-container').find('button').remove();
 
@@ -196,8 +264,7 @@ App = {
         $('.waiting-phase').append("Game ID: ");
         $('.waiting-phase').append(result.args.idGame.toNumber());
         $('.waiting-phase').append('<br>Waiting for player...');
-        waitingForJoin = true;
-          
+        waitingForJoin = true; 
       });
 
       instance.JoinedGame(function (err, result) {
@@ -216,6 +283,7 @@ App = {
         waitingForSync = true;
         boardDimension = result.args.boardDimension.toNumber()
         $('.splash-container').find('button').remove();
+        $('.splash-container').find('select').remove();
         $('.splash-container').find('input').remove();
         $('.waiting-phase').remove();
 
@@ -233,7 +301,6 @@ App = {
 
         $('.decision').append('<div class="offer"</div>');
         $('.offer').append('Your adversary is still thinking...');
-
       });
       
       instance.OfferReceived(function (err, result) {
@@ -283,15 +350,15 @@ App = {
         if(waitingForSet == false) return;
         waitingForSet = false;
 
-        for (let i = 0; i < boardDimension * boardDimension; i++) {
-          grid.push(0);
+        for (var i = 0; i < boardDimension * boardDimension; i++) {
+          gridPlayer.push(0);
         }
 
         $('.pay-phase').remove();
         $('.splash-container').append("<div class='board-phase'></div>");
-        $('.board-phase').append("<table id='gridTable'></table>");
+        $('.board-phase').append("<table id='gridPlayerTable'></table>");
 
-        const table = document.getElementById("gridTable");
+        const table = document.getElementById("gridPlayerTable");
         var cellID = 0;
         for(var i = 0; i < boardDimension; i++) {
             const tr = document.createElement("tr");
@@ -299,6 +366,7 @@ App = {
             const td = document.createElement("td");
             td.setAttribute('id', cellID);
             td.setAttribute('value', 0);
+            td.setAttribute('data-attack', 0);
             cellID++;
             td.addEventListener('click', App.shipOnCell);
             tr.appendChild(td);
@@ -315,8 +383,65 @@ App = {
         });
         $('.board-phase').append("<button class='btn splash-btn' id='rotateButton'>Rotate</button>");
         $(document).on('click', '#rotateButton', App.rotate);
+      });
 
+      instance.StartGame(function (err, result) {
+        if(err) {
+          console.error(err);
+        }
+        if(result.args.idGame.toNumber() != IDGame) return;
+        if(waitingForStart == false) return;
+        waitingForStart = false;
+        $('#playButton').remove();
+        $('.board-phase').append("<div class='board-enemy'></div>");
+        $('.board-enemy').append("<table id='gridEnemyTable'></table>");
 
+        const table = document.getElementById("gridEnemyTable");
+        var cellID = 0;
+        for(var i = 0; i < boardDimension; i++) {
+            const tr = document.createElement("tr");
+          for(var j = 0; j < boardDimension; j++){
+            const td = document.createElement("td");
+            td.setAttribute('data-id', cellID);
+            td.setAttribute('value', 0);
+            td.setAttribute('data-attack', 0);
+            cellID++;
+            td.addEventListener('click', App.attack);
+            tr.appendChild(td);
+          };
+          table.appendChild(tr);
+        };
+
+        $('.board-enemy').append("<button class='btn splash-btn' id='afkButton'>AFK</button>");
+        $(document).on('click', '#afkButton', App.afk);
+      });
+
+      instance.AttackedCell(function (err, result) {
+        if(err) {
+          console.error(err);
+        }
+        if(result.args.idGame.toNumber() != IDGame) return;
+        if(turn) return;
+        turn = true;
+        const cell = document.getElementById(result.args.cell.toNumber());
+        //MERKLE PROOF
+        var proof = [];
+        var target = result.args.cell.toNumber();
+        proof.push(cell.getAttribute("value"));
+        proof.push(gridSalt[target]);
+        for (var i = 0; i < merkleProofTree.length; i++) {
+          for (var j = 0; j < merkleProofTree[j].length; j++) {
+            if(target == j) { //sono nel sotto albero che mi interessa
+              if(target%2 == 0)
+                proof.push(merkleProofTree[i][target + 1]);  //prendo l'hash di "destra"
+              else
+                proof.push(merkleProofTree[i][target -1]);   //prendo l'hash di "sinistra"
+              
+              target = Math.floor(target/2);
+            }
+          }
+        }
+        console.log(proof);
       });
     });
   }
