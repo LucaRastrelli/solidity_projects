@@ -28,6 +28,10 @@ contract Battleship {
   event SetGame(uint256 idGame);
   event StartGame(uint256 idGame);
   event AttackedCell(uint256 idGame, uint8 cell);
+  event AttackResponse(uint256 idGame, uint8 response);
+  event EndGame(uint256 idGame, address winner);
+
+  event log(bytes32 a, bytes32 b, uint8 target);
 
   function newGame(uint8 dimension) public {
     emit NewGameCreated(msg.sender, nextGameID);
@@ -121,7 +125,45 @@ contract Battleship {
     emit AttackedCell(gameID, cellID);
   }
 
-  function attackResponse() private {}
+  function attackResponse(uint256 gameID, uint8 value, bytes32[] memory merkleProof, uint8 cellID) public {
+    require(gameID >= 0, "ID must be greater than 0");
+    require(gameID < nextGameID, "Game not open");
+
+    uint8 target = cellID;
+    bytes32 proofRoot = merkleProof[0];
+    for(uint i = 1; i < merkleProof.length; i++) {
+      if(target%2 == 0) {
+        if(proofRoot != merkleProof[i])
+          proofRoot = keccak256(abi.encodePacked(proofRoot, merkleProof[i]));
+        else
+          proofRoot = proofRoot;
+      }
+      else
+        proofRoot = keccak256(abi.encodePacked(merkleProof[i], proofRoot));
+      
+      target = target / 2;
+    }
+
+    if (games[gameID].player == msg.sender) {
+      require(games[gameID].playerGridHash == proofRoot, "Proof not verified from player");
+      if(value == 1) 
+        games[gameID].playerHitSum--;
+      emit AttackResponse(gameID, value);
+
+      if(games[gameID].playerHitSum == 0)
+        emit EndGame(gameID, games[gameID].enemy);
+    }
+    else if (games[gameID].enemy == msg.sender) {
+      require(games[gameID].enemyGridHash == proofRoot, "Proof not verified from enemy");
+      if(value == 1) 
+        games[gameID].enemyHitSum--;
+      emit AttackResponse(gameID, value);
+
+      if(games[gameID].enemyHitSum == 0)
+        emit EndGame(gameID, games[gameID].player);
+    }
+    
+  }
 
   function checkWinner() private {}
 

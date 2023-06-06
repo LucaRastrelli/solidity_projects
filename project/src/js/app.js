@@ -18,6 +18,7 @@ var ship;
 var shipDimension = 0;
 var adding = 1;
 var turn = false;
+var targetCell;
 
 App = {
   web3Provider: null,
@@ -217,7 +218,7 @@ App = {
       nodes = [];
       for (var i = 0; i < tempHashes.length; i = i + 2) {
         if(tempHashes[i + 1])
-          nodes.push(window.web3Utils.keccak256(tempHashes[i] + tempHashes[i+1]));
+          nodes.push(window.web3Utils.keccak256(window.web3Utils.encodePacked(tempHashes[i], tempHashes[i+1])));
         else
           nodes.push(tempHashes[i]);
       }
@@ -230,7 +231,7 @@ App = {
 
   attack: function(event) {
     if(!turn) return;
-    const targetCell = event.target;
+    targetCell = event.target;
     var attacked = parseInt(targetCell.dataset.attack);
     if(attacked == 1) return;
     targetCell.dataset.attack = 1;
@@ -424,25 +425,54 @@ App = {
         if(turn) return;
         turn = true;
         const cell = document.getElementById(result.args.cell.toNumber());
+        cell.innerHTML="x";
         //MERKLE PROOF
         var proof = [];
         var target = result.args.cell.toNumber();
-        proof.push(cell.getAttribute("value"));
-        proof.push(gridSalt[target]);
+        var lastTarget = target;
+        var value = cell.getAttribute("value");
+        //proof.push(value);
+        proof.push(gridHash[target]);
+        cell.setAttribute("data-attack", 1);
         for (var i = 0; i < merkleProofTree.length; i++) {
-          for (var j = 0; j < merkleProofTree[j].length; j++) {
+          for (var j = 0; j < merkleProofTree[i].length; j++) {
             if(target == j) { //sono nel sotto albero che mi interessa
-              if(target%2 == 0)
-                proof.push(merkleProofTree[i][target + 1]);  //prendo l'hash di "destra"
+              if(target%2 == 0) {
+                if(merkleProofTree[i][target + 1])
+                  proof.push(merkleProofTree[i][target + 1]);  //prendo l'hash di "destra"
+                else
+                  proof.push(gridHash[lastTarget]);
+              }
               else
-                proof.push(merkleProofTree[i][target -1]);   //prendo l'hash di "sinistra"
+                proof.push(merkleProofTree[i][target - 1]);   //prendo l'hash di "sinistra"
               
               target = Math.floor(target/2);
+              break;
             }
           }
         }
         console.log(proof);
+        var target = result.args.cell.toNumber();
+        App.contracts.Battleship.deployed().then(function (instance) {
+          return instance.attackResponse(IDGame, value, proof, target, {from: App.account});
+        }).catch(function (err) {
+          console.error(err.message);
+        });
       });
+
+      instance.AttackResponse(function (err, result) {
+        if(err) {
+          console.error(err);
+        }
+        if(result.args.idGame.toNumber() != IDGame) return;
+        if(waitingForResponse == false) return;
+        waitingForResponse = false;
+        turn = false;
+        if(result.args.response.toNumber() == 1)
+          targetCell.style.backgroundColor = "red";
+        else
+          targetCell.style.backgroundColor = "blue";
+      })
     });
   }
 };
