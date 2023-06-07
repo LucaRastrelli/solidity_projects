@@ -473,6 +473,19 @@ App = {
         else
           targetCell.style.backgroundColor = "blue";
       })
+
+      instance.ReceiveBoard(function (err, result) {
+        if(err) {
+          console.error(err);
+        }
+        if(result.args.idGame.toNumber() != IDGame) return;
+        if(result.args.winner != App.account) return; //non sono io il vincitore
+        App.contracts.Battleship.deployed().then(function (instance) {
+          return instance.checkWinner(IDGame, value, proof, target, {from: App.account});
+        }).catch(function (err) {
+          console.error(err.message);
+        });
+      })
     });
   }
 };

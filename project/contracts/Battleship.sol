@@ -4,6 +4,7 @@ pragma solidity >=0.4.22 <0.9.0;
 contract Battleship {
   uint256 private nextGameID = 1;
   uint256 private counter = 0;  //conta il numero di partite aperte
+  uint8 shipNumber = 16;
 
   struct Game {
     address player;
@@ -30,6 +31,7 @@ contract Battleship {
   event AttackedCell(uint256 idGame, uint8 cell);
   event AttackResponse(uint256 idGame, uint8 response);
   event EndGame(uint256 idGame, address winner);
+  event ReceiveBoard(uint256 idGame, address winner);
 
   event log(bytes32 a, bytes32 b, uint8 target);
 
@@ -45,8 +47,8 @@ contract Battleship {
     games[nextGameID].enemyGridHash = 0;
     games[nextGameID].playerPay = false;
     games[nextGameID].enemyPay = false;
-    games[nextGameID].playerHitSum = 16;
-    games[nextGameID].enemyHitSum = 16;
+    games[nextGameID].playerHitSum = shipNumber;
+    games[nextGameID].enemyHitSum = shipNumber;
     nextGameID++;
     counter++;
   }
@@ -55,6 +57,7 @@ contract Battleship {
     require(gameId >= 0, "ID must be greater than 0");
     require(gameId < nextGameID, "Game not open");
     require(counter > 0, "No games available");
+    require(games[gameId].ended == false, "The game is over");
 
     //randomness
     if(gameId == 0) {
@@ -92,6 +95,11 @@ contract Battleship {
   } 
 
   function bet(uint256 gameId, uint8 offer) public {
+    require(gameId >= 0, "ID must be greater than 0");
+    require(gameId < nextGameID, "Game not open");
+    require(games[gameId].ended == false, "The game is over");
+    if (games[gameId].player != msg.sender && games[gameId].enemy != msg.sender)
+      return;
     
     if (games[gameId].playerOffer == games[gameId].enemyOffer) require(games[gameId].playerOffer == 0);
     else require(games[gameId].playerOffer != games[gameId].enemyOffer);
@@ -101,15 +109,15 @@ contract Battleship {
 
     emit OfferReceived(msg.sender, offer, gameId);
 
-    if (games[gameId].playerOffer == games[gameId].enemyOffer) {
+    if (games[gameId].playerOffer == games[gameId].enemyOffer)
       emit CommonOffer(games[gameId].playerOffer, gameId);
-    }
 
   }
 
   function pay(uint256 gameId) public payable {
     require(gameId >= 0, "ID must be greater than 0");
-    require(gameId < nextGameID, "Game not open");    
+    require(gameId < nextGameID, "Game not open");
+    require(games[gameId].ended == false, "The game is over");  
 
     if (games[gameId].player == msg.sender) games[gameId].playerPay = true;
     if (games[gameId].enemy == msg.sender) games[gameId].enemyPay = true;
@@ -120,14 +128,20 @@ contract Battleship {
   function attack(uint256 gameID, uint8 cellID) public {
     require(gameID >= 0, "ID must be greater than 0");
     require(gameID < nextGameID, "Game not open");
+    require(games[gameID].ended == false, "The game is over");
     require(cellID < games[gameID].boardDimension * games[gameID].boardDimension);
+    if (games[gameID].player != msg.sender && games[gameID].enemy != msg.sender)
+      return;
 
     emit AttackedCell(gameID, cellID);
   }
 
-  function attackResponse(uint256 gameID, uint8 value, bytes32[] memory merkleProof, uint8 cellID) public {
+  function attackResponse(uint256 gameID, uint8 value, bytes32[] memory merkleProof, uint8 cellID) public payable{
     require(gameID >= 0, "ID must be greater than 0");
     require(gameID < nextGameID, "Game not open");
+    require(games[gameID].ended == false, "The game is over");
+    if (games[gameID].player != msg.sender && games[gameID].enemy != msg.sender)
+      return;
 
     uint8 target = cellID;
     bytes32 proofRoot = merkleProof[0];
@@ -145,35 +159,97 @@ contract Battleship {
     }
 
     if (games[gameID].player == msg.sender) {
-      require(games[gameID].playerGridHash == proofRoot, "Proof not verified from player");
+      if(games[gameID].playerGridHash != proofRoot) { //player is cheater
+        games[gameID].playerHitSum = 0;
+        endGame(games[gameID].enemy, games[gameID].playerOffer, gameID);
+        return;
+      }
       if(value == 1) 
         games[gameID].playerHitSum--;
       emit AttackResponse(gameID, value);
 
       if(games[gameID].playerHitSum == 0)
-        emit EndGame(gameID, games[gameID].enemy);
+        emit ReceiveBoard(gameID, games[gameID].player);
     }
     else if (games[gameID].enemy == msg.sender) {
-      require(games[gameID].enemyGridHash == proofRoot, "Proof not verified from enemy");
+      if(games[gameID].enemyGridHash != proofRoot) {  //enemy is cheater
+        games[gameID].enemyHitSum = 0;
+        endGame(games[gameID].player, games[gameID].playerOffer, gameID);
+        return;
+      }
       if(value == 1) 
         games[gameID].enemyHitSum--;
       emit AttackResponse(gameID, value);
 
       if(games[gameID].enemyHitSum == 0)
-        emit EndGame(gameID, games[gameID].player);
+        emit ReceiveBoard(gameID, games[gameID].player);
     }
     
   }
 
-  function checkWinner() private {}
+  function checkWinner(uint256 gameID, uint8[] memory winnerBoard) public payable {
+    require(gameID >= 0, "ID must be greater than 0");
+    require(gameID < nextGameID, "Game not open");
+    require(games[gameID].ended == false, "The game is over");
+    if (games[gameID].player != msg.sender && games[gameID].enemy != msg.sender)
+      return;
 
-  function endGame() private {}
+    //Controllo che non sia stata chiamata per imbrogliare
+    bool caller = false;  //false: enemy; true: player
+    if (games[gameID].player == msg.sender) caller = true;
+
+    if(caller) {
+      if(games[gameID].enemyHitSum > 0) {           //non ho abbattuto tutte le navi del nemico
+        endGame(games[gameID].enemy, games[gameID].playerOffer, gameID);
+        return;
+      }
+    }
+    else {
+      if(games[gameID].playerHitSum > 0) {          //non ho abbattuto tutte le navi del player
+        endGame(games[gameID].player, games[gameID].playerOffer, gameID);
+        return;
+      }
+    }
+    uint8 shipsOnBoard = 0;
+    for(uint8 i = 0; i < winnerBoard.length; i++) {
+      if(winnerBoard[i] == 1) 
+        shipsOnBoard++;
+    }
+    
+    if(shipsOnBoard == shipNumber) {
+      if(caller) {
+        endGame(games[gameID].player, games[gameID].playerOffer, gameID);
+        return;
+      }
+      else {
+        endGame(games[gameID].enemy, games[gameID].playerOffer, gameID);
+        return;
+      }
+    }
+    else {
+      if(caller) {
+        endGame(games[gameID].enemy, games[gameID].playerOffer, gameID);
+        return;
+      }
+      else {
+        endGame(games[gameID].player, games[gameID].playerOffer, gameID);
+        return;
+      }
+    }
+
+  }
+
+  function endGame(address account, uint8 amount, uint256 gameID) private {
+    games[gameID].ended = true;
+    payable(account).transfer(amount * 2);
+  }
 
   function afkPlayer() public {}
 
   function board(uint256 gameID, bytes32 boardHash) public {
     require(gameID < nextGameID);
     require(gameID > 0);
+    require(games[gameID].ended == false, "The game is over");
     
     if (games[gameID].player == msg.sender) games[gameID].playerGridHash = boardHash;
     if (games[gameID].enemy == msg.sender) games[gameID].enemyGridHash = boardHash;
