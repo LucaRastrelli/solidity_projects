@@ -4,7 +4,7 @@ pragma solidity >=0.4.22 <0.9.0;
 contract Battleship {
   uint256 private nextGameID = 1;
   uint256 private counter = 0;  //conta il numero di partite aperte
-  uint8 shipNumber = 16;
+  uint8 shipNumber = 2;
 
   struct Game {
     address player;
@@ -13,8 +13,8 @@ contract Battleship {
     bytes32 playerGridHash;
     bytes32 enemyGridHash;
     bool ended;       //false: la partita non è finita; true: la partita è finita
-    uint8 playerOffer;
-    uint8 enemyOffer;
+    uint playerOffer;
+    uint enemyOffer;
     bool playerPay;   //false: il giocatore non ha pagato
     bool enemyPay;    //false: enemy non ha pagato
     uint8 playerHitSum; 
@@ -24,16 +24,14 @@ contract Battleship {
   mapping (uint256 => Game) private games;
   event NewGameCreated(address player, uint256 idGame);
   event JoinedGame(address player, address enemy, uint256 idGame, uint8 boardDimension);
-  event OfferReceived(address bidder, uint8 offer, uint256 idGame);
-  event CommonOffer(uint8 offer, uint256 idGame);
+  event OfferReceived(address bidder, uint offer, uint256 idGame);
+  event CommonOffer(uint offer, uint256 idGame);
   event SetGame(uint256 idGame);
   event StartGame(uint256 idGame);
   event AttackedCell(uint256 idGame, uint8 cell);
   event AttackResponse(uint256 idGame, uint8 response);
   event EndGame(uint256 idGame, address winner);
-  event ReceiveBoard(uint256 idGame, address winner);
-
-  event log(bytes32 a, bytes32 b, uint8 target);
+  event ReceiveBoard(uint256 idGame, address check);
 
   function newGame(uint8 dimension) public {
     emit NewGameCreated(msg.sender, nextGameID);
@@ -94,7 +92,7 @@ contract Battleship {
     emit JoinedGame(games[gameId].player, msg.sender, gameId, games[gameId].boardDimension);
   } 
 
-  function bet(uint256 gameId, uint8 offer) public {
+  function bet(uint256 gameId, uint offer) public {
     require(gameId >= 0, "ID must be greater than 0");
     require(gameId < nextGameID, "Game not open");
     require(games[gameId].ended == false, "The game is over");
@@ -119,9 +117,15 @@ contract Battleship {
     require(gameId < nextGameID, "Game not open");
     require(games[gameId].ended == false, "The game is over");  
 
-    if (games[gameId].player == msg.sender) games[gameId].playerPay = true;
-    if (games[gameId].enemy == msg.sender) games[gameId].enemyPay = true;
-
+    if (games[gameId].player == msg.sender) {
+      if(games[gameId].playerOffer == msg.value)
+        games[gameId].playerPay = true;
+    }
+    if (games[gameId].enemy == msg.sender) {
+      if(games[gameId].playerOffer == msg.value)
+        games[gameId].enemyPay = true;
+    }
+    
     if(games[gameId].playerPay && games[gameId].enemyPay) emit SetGame(gameId);
   }
 
@@ -161,7 +165,9 @@ contract Battleship {
     if (games[gameID].player == msg.sender) {
       if(games[gameID].playerGridHash != proofRoot) { //player is cheater
         games[gameID].playerHitSum = 0;
-        endGame(games[gameID].enemy, games[gameID].playerOffer, gameID);
+        games[gameID].ended = true;
+        emit EndGame(gameID, games[gameID].enemy);
+        payable(games[gameID].enemy).transfer(games[gameID].playerOffer * 2);
         return;
       }
       if(value == 1) 
@@ -174,7 +180,9 @@ contract Battleship {
     else if (games[gameID].enemy == msg.sender) {
       if(games[gameID].enemyGridHash != proofRoot) {  //enemy is cheater
         games[gameID].enemyHitSum = 0;
-        endGame(games[gameID].player, games[gameID].playerOffer, gameID);
+        games[gameID].ended = true;
+        emit EndGame(gameID, games[gameID].player);
+        payable(games[gameID].player).transfer(games[gameID].playerOffer * 2);
         return;
       }
       if(value == 1) 
@@ -200,13 +208,17 @@ contract Battleship {
 
     if(caller) {
       if(games[gameID].enemyHitSum > 0) {           //non ho abbattuto tutte le navi del nemico
-        endGame(games[gameID].enemy, games[gameID].playerOffer, gameID);
+        games[gameID].ended = true;
+        emit EndGame(gameID, games[gameID].enemy);
+        payable(games[gameID].enemy).transfer(games[gameID].enemyOffer * 2);
         return;
       }
     }
     else {
       if(games[gameID].playerHitSum > 0) {          //non ho abbattuto tutte le navi del player
-        endGame(games[gameID].player, games[gameID].playerOffer, gameID);
+        games[gameID].ended = true;
+        emit EndGame(gameID, games[gameID].player);
+        payable(games[gameID].player).transfer(games[gameID].playerOffer * 2);
         return;
       }
     }
@@ -218,30 +230,33 @@ contract Battleship {
     
     if(shipsOnBoard == shipNumber) {
       if(caller) {
-        endGame(games[gameID].player, games[gameID].playerOffer, gameID);
+        games[gameID].ended = true;
+        emit EndGame(gameID, games[gameID].player);
+        payable(games[gameID].player).transfer(games[gameID].playerOffer * 2);
         return;
       }
       else {
-        endGame(games[gameID].enemy, games[gameID].playerOffer, gameID);
+        games[gameID].ended = true;
+        emit EndGame(gameID, games[gameID].enemy);
+        payable(games[gameID].enemy).transfer(games[gameID].enemyOffer * 2);
         return;
       }
     }
     else {
       if(caller) {
-        endGame(games[gameID].enemy, games[gameID].playerOffer, gameID);
+        games[gameID].ended = true;
+        emit EndGame(gameID, games[gameID].enemy);
+        payable(games[gameID].enemy).transfer(games[gameID].enemyOffer * 2);
         return;
       }
       else {
-        endGame(games[gameID].player, games[gameID].playerOffer, gameID);
+        games[gameID].ended = true;
+        emit EndGame(gameID, games[gameID].player);
+        payable(games[gameID].player).transfer(games[gameID].playerOffer * 2);
         return;
       }
     }
 
-  }
-
-  function endGame(address account, uint8 amount, uint256 gameID) private {
-    games[gameID].ended = true;
-    payable(account).transfer(amount * 2);
   }
 
   function afkPlayer() public {}

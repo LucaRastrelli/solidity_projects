@@ -102,7 +102,7 @@ App = {
     var offer = document.getElementById("bet").value;
     if (offer <= 0) offer = 1;
     App.contracts.Battleship.deployed().then(function (instance) {
-      return instance.bet(IDGame, offer, {from: App.account});
+      return instance.bet(IDGame, window.web3Utils.toWei(offer.toString()), {from: App.account});
     }).catch(function (err) {
       console.error(err.message);
     });
@@ -112,7 +112,7 @@ App = {
   pay: function() {
     App.contracts.Battleship.deployed().then(function (instance) {
       waitingForSet = true;
-      return instance.pay(IDGame, {from: App.account, value: ethOffer.toString() + "000000000000000000"});
+      return instance.pay(IDGame, {from: App.account, value: window.web3Utils.toWei(ethOffer.toString())});
     }).catch(function (err) {
       console.error(err.message);
     });
@@ -313,6 +313,7 @@ App = {
         if(result.args.bidder == App.account) return; //ignora l'event se ho fatto io la proposta
         
         ethOffer = result.args.offer.toNumber();
+        ethOffer = window.web3Utils.fromWei(ethOffer.toString());
 
         $('.offer').remove();
         $('.decision').append('<div class="offer"</div>');
@@ -329,6 +330,7 @@ App = {
         if(waitingForSync == false) return;
         waitingForSync = false;
         ethOffer = result.args.offer.toNumber();
+        ethOffer = window.web3Utils.fromWei(ethOffer.toString())
         $('.offer').remove();
         $('.decision').remove();
         $('.sync-phase').remove();
@@ -479,13 +481,29 @@ App = {
           console.error(err);
         }
         if(result.args.idGame.toNumber() != IDGame) return;
-        if(result.args.winner != App.account) return; //non sono io il vincitore
+        if(result.args.check != App.account) return; //non sono io il probabile vincitore
         App.contracts.Battleship.deployed().then(function (instance) {
-          return instance.checkWinner(IDGame, value, proof, target, {from: App.account});
+          return instance.checkWinner(IDGame, gridPlayer, {from: App.account});
         }).catch(function (err) {
           console.error(err.message);
         });
       })
+      
+      instance.EndGame(function (err, result) {
+        if(err) {
+          console.error(err);
+        }
+        if(result.args.idGame.toNumber() != IDGame) return;
+        IDGame = 0;
+        $('.board-phase').remove();
+        $('.splash-container').append("<div class='end-phase'></div>")
+        if(result.args.winner != App.account) //non sono io il vincitore
+          $('.end-phase').append("You lost!");
+        else
+          $('.end-phase').append("You won!");
+        return;
+      })
+
     });
   }
 };
