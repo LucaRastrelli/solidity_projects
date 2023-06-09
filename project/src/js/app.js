@@ -243,7 +243,14 @@ App = {
     });
   },
 
-  afk: function() {},
+  afk: function() {
+    if(turn) return;
+    App.contracts.Battleship.deployed().then(function (instance) {
+      return instance.afkPlayer(IDGame, {from: App.account});
+    }).catch(function (err) {
+      console.error(err.message);
+    });
+  },
 
   listenForEvents: function() {
     App.contracts.Battleship.deployed().then(function (instance) {
@@ -494,6 +501,7 @@ App = {
           console.error(err);
         }
         if(result.args.idGame.toNumber() != IDGame) return;
+        if(IDGame == 0) return;
         IDGame = 0;
         $('.board-phase').remove();
         $('.splash-container').append("<div class='end-phase'></div>")

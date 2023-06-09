@@ -19,6 +19,8 @@ contract Battleship {
     bool enemyPay;    //false: enemy non ha pagato
     uint8 playerHitSum; 
     uint8 enemyHitSum;
+    address afk;
+    uint afkBlock;
   }
 
   mapping (uint256 => Game) private games;
@@ -47,6 +49,8 @@ contract Battleship {
     games[nextGameID].enemyPay = false;
     games[nextGameID].playerHitSum = shipNumber;
     games[nextGameID].enemyHitSum = shipNumber;
+    games[nextGameID].afk = address(0);
+    games[nextGameID].afkBlock = 0;
     nextGameID++;
     counter++;
   }
@@ -136,6 +140,11 @@ contract Battleship {
     require(cellID < games[gameID].boardDimension * games[gameID].boardDimension);
     if (games[gameID].player != msg.sender && games[gameID].enemy != msg.sender)
       return;
+
+    if(games[gameID].afk == msg.sender) {
+      games[gameID].afk = address(0);
+      games[gameID].afkBlock = 0;
+    }
 
     emit AttackedCell(gameID, cellID);
   }
@@ -259,7 +268,38 @@ contract Battleship {
 
   }
 
-  function afkPlayer() public {}
+  function afkPlayer(uint256 gameID) public {
+    require(gameID < nextGameID);
+    require(gameID > 0);
+    require(games[gameID].ended == false, "The game is over");
+
+    address afkTarget;
+    if(games[gameID].player == msg.sender) afkTarget = games[gameID].enemy;
+    if(games[gameID].enemy == msg.sender) afkTarget = games[gameID].player;
+    
+    if(games[gameID].afkBlock != 0){
+      if(block.number >= games[gameID].afkBlock){
+        if(games[gameID].afk == games[gameID].enemy) {  //Enemy AFK: player won.
+          games[gameID].ended = true;
+          emit EndGame(gameID, games[gameID].player);
+          payable(games[gameID].player).transfer(games[gameID].playerOffer * 2);
+          return;
+        }
+        else {      //Player AFK: enemy won.
+          games[gameID].ended = true;
+          emit EndGame(gameID, games[gameID].enemy);
+          payable(games[gameID].enemy).transfer(games[gameID].enemyOffer * 2);
+          return;
+        }
+      }
+    } 
+    else {
+      games[gameID].afkBlock = block.number + 5;
+      games[gameID].afk = afkTarget;
+      return;
+    }
+
+  }
 
   function board(uint256 gameID, bytes32 boardHash) public {
     require(gameID < nextGameID);
