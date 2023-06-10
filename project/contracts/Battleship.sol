@@ -4,7 +4,7 @@ pragma solidity >=0.4.22 <0.9.0;
 contract Battleship {
   uint256 private nextGameID = 1;
   uint256 private counter = 0;  //conta il numero di partite aperte
-  uint8 shipNumber = 2;
+  uint8 shipNumber = 16;
 
   struct Game {
     address player;
