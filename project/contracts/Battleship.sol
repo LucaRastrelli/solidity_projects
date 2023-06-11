@@ -21,6 +21,7 @@ contract Battleship {
     uint8 enemyHitSum;
     address afk;
     uint afkBlock;
+    bool turn;        //false: enemy turn; true: player turn
   }
 
   mapping (uint256 => Game) private games;
@@ -51,6 +52,7 @@ contract Battleship {
     games[nextGameID].enemyHitSum = shipNumber;
     games[nextGameID].afk = address(0);
     games[nextGameID].afkBlock = 0;
+    games[nextGameID].turn = true;
     nextGameID++;
     counter++;
   }
@@ -138,8 +140,10 @@ contract Battleship {
     require(gameID < nextGameID, "Game not open");
     require(games[gameID].ended == false, "The game is over");
     require(cellID < games[gameID].boardDimension * games[gameID].boardDimension);
-    if (games[gameID].player != msg.sender && games[gameID].enemy != msg.sender)
-      return;
+
+    if (games[gameID].player == msg.sender) require(games[gameID].turn == true);
+    else if (games[gameID].enemy == msg.sender) require(games[gameID].turn == false);
+    else return;
 
     if(games[gameID].afk == msg.sender) {
       games[gameID].afk = address(0);
@@ -153,8 +157,10 @@ contract Battleship {
     require(gameID >= 0, "ID must be greater than 0");
     require(gameID < nextGameID, "Game not open");
     require(games[gameID].ended == false, "The game is over");
-    if (games[gameID].player != msg.sender && games[gameID].enemy != msg.sender)
-      return;
+
+    if (games[gameID].player == msg.sender) require(games[gameID].turn == false);
+    else if (games[gameID].enemy == msg.sender) require(games[gameID].turn == true);
+    else return;
 
     uint8 target = cellID;
     bytes32 proofRoot = merkleProof[0];
@@ -202,6 +208,7 @@ contract Battleship {
         emit ReceiveBoard(gameID, games[gameID].player);
     }
     
+    games[gameID].turn = !games[gameID].turn;
   }
 
   function checkWinner(uint256 gameID, uint8[] memory winnerBoard) public payable {
@@ -273,6 +280,10 @@ contract Battleship {
     require(gameID > 0);
     require(games[gameID].ended == false, "The game is over");
 
+    if (games[gameID].player == msg.sender) require(games[gameID].turn == false);
+    else if (games[gameID].enemy == msg.sender) require(games[gameID].turn == true);
+    else return;
+
     address afkTarget;
     if(games[gameID].player == msg.sender) afkTarget = games[gameID].enemy;
     if(games[gameID].enemy == msg.sender) afkTarget = games[gameID].player;
@@ -293,11 +304,9 @@ contract Battleship {
         }
       }
     } 
-    else {
-      games[gameID].afkBlock = block.number + 5;
-      games[gameID].afk = afkTarget;
-      return;
-    }
+    games[gameID].afkBlock = block.number + 5;
+    games[gameID].afk = afkTarget;
+    return;
 
   }
 
