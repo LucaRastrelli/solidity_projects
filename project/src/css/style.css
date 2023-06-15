@@ -1,0 +1,118 @@
+body {
+  margin: 0;
+  background-color: #F3F3F3;
+  overflow-x: hidden;
+}
+
+*, *::before, *::after {
+  font-family: 'Montserrat', sans-serif;
+  box-sizing: border-box;
+}
+
+.splash-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 66vh;
+}
+
+.splash-title {
+  font-family: 'Bangers', cursive;
+  font-size: 3rem;
+  position: absolute;
+  top: -20px; /* Allinea la parte superiore della scritta con la parte superiore del contenitore */
+  left: 20px; /* Allinea la parte sinistra della scritta con la parte sinistra del contenitore */
+}
+
+.btn {
+  font-size: inherit;
+  background-color: hsl(30, 100%, 50%);
+  padding: .5em 1em;
+  outline: none;
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: .2em;
+  color: #333;
+}
+
+.btn:hover, .btn:focus {
+  background-color: hsl(30, 100%, 40%);
+}
+
+.splash-btn {
+  font-size: 2rem;
+  margin-left: 2rem;
+}
+
+.splash-btn:first-child {
+  margin-left: 0;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+td {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #000;
+  background-color: #fff;
+}
+
+.ship-container {
+  display: inline-block;
+  margin-right: 10px;
+}
+
+.ship-container span {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #000;
+  background-color: green;
+  margin-right: 5px;
+}
+
+.ship-container span[data-width="2"] {
+  width: 60px;
+  height: 30px;
+}
+
+.ship-container span[data-width="3"] {
+  width: 90px;
+  height: 30px;
+}
+
+.ship-container span[data-width="4"] {
+  width: 120px;
+  height: 30px;
+}
+
+.ship-container span[data-width="5"] {
+  width: 150px;
+  height: 30px;
+}
+
+.ship-container.vertical span[data-width="2"] {
+  height: 60px;
+  width: 30px;
+}
+
+.ship-container.vertical span[data-width="3"] {
+  height: 90px;
+  width: 30px;
+}
+
+.ship-container.vertical span[data-width="4"] {
+  height: 120px;
+  width: 30px;
+}
+
+.ship-container.vertical span[data-width="5"] {
+  height: 150px;
+  width: 30px;
+}

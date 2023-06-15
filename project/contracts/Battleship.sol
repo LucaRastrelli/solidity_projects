@@ -22,6 +22,7 @@ contract Battleship {
     address afk;
     uint afkBlock;
     bool turn;        //false: enemy turn; true: player turn
+    uint8 cellIDAttacked;
   }
 
   mapping (uint256 => Game) private games;
@@ -53,6 +54,7 @@ contract Battleship {
     games[nextGameID].afk = address(0);
     games[nextGameID].afkBlock = 0;
     games[nextGameID].turn = true;
+    games[nextGameID].cellIDAttacked = 0;
     nextGameID++;
     counter++;
   }
@@ -149,11 +151,11 @@ contract Battleship {
       games[gameID].afk = address(0);
       games[gameID].afkBlock = 0;
     }
-
+    games[gameID].cellIDAttacked = cellID;
     emit AttackedCell(gameID, cellID);
   }
 
-  function attackResponse(uint256 gameID, uint8 value, bytes32[] memory merkleProof, uint8 cellID) public payable{
+  function attackResponse(uint256 gameID, uint8 value, bytes32[] memory merkleProof) public payable{
     require(gameID >= 0, "ID must be greater than 0");
     require(gameID < nextGameID, "Game not open");
     require(games[gameID].ended == false, "The game is over");
@@ -162,7 +164,7 @@ contract Battleship {
     else if (games[gameID].enemy == msg.sender) require(games[gameID].turn == true);
     else return;
 
-    uint8 target = cellID;
+    uint8 target = games[gameID].cellIDAttacked;
     bytes32 proofRoot = merkleProof[0];
     for(uint i = 1; i < merkleProof.length; i++) {
       if(target%2 == 0) {

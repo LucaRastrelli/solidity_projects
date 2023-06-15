@@ -463,7 +463,7 @@ App = {
         console.log(proof);
         var target = result.args.cell.toNumber();
         App.contracts.Battleship.deployed().then(function (instance) {
-          return instance.attackResponse(IDGame, value, proof, target, {from: App.account});
+          return instance.attackResponse(IDGame, value, proof, {from: App.account});
         }).catch(function (err) {
           console.error(err.message);
         });
